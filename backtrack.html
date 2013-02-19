@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>
+		Backtrack
+	</title>
+	<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+	<script>
+
+	var current;
+	var map;
+	var dest=[];
+	var sel;
+	var directionsDisplay = new google.maps.DirectionsRenderer();
+	var directionsService = new google.maps.DirectionsService();
+
+	var winW = 1024;
+	var winH = 768;
+	if(document.body && document.body.offsetWidth){winW = document.body.offsetWidth; winH = document.body.offsetHeight;}
+	if(document.compatMode=='CSS1Compat' && document.documentElement && document.documentElement.offsetWidth){winW = document.documentElement.offsetWidth; winH = document.documentElement.offsetHeight;}
+	if(window.innerWidth && window.innerHeight) {winW = window.innerWidth; winH = window.innerHeight;}
+
+	if(localStorage.memory){
+		dest=localStorage.memory.split('|');
+	}
+
+	function getLocation(){
+		if (navigator.geolocation){
+			navigator.geolocation.getCurrentPosition(showPosition,showError);
+		}else{
+			document.getElementById('mapholder').innerHTML="Geolocation is not supported by this browser.";
+		}
+	}
+
+	function showPosition(position){
+		lat=position.coords.latitude;
+		lon=position.coords.longitude;
+
+		current=lat+','+lon+'';
+
+		latlon=new google.maps.LatLng(lat, lon)
+		mapholder=document.getElementById('mapholder')
+		mapholder.style.height=(winH-175)+'px';
+		mapholder.style.width=(winW-20)+'px';
+
+		var myOptions={
+			center:latlon,zoom:14,
+			mapTypeId:google.maps.MapTypeId.ROADMAP,
+			mapTypeControl:false,
+			navigationControlOptions:{style:google.maps.NavigationControlStyle.LARGE}
+		};
+		map=new google.maps.Map(document.getElementById("mapholder"),myOptions);
+		var marker=new google.maps.Marker({position:latlon,map:map,title:"You are here!"});
+		directionsDisplay.setMap(map);
+	}
+
+	function calcRoute(selection) {
+		document.getElementById('label').innerHTML='FOLLOW THE TRAIL:';
+		sel=selection;
+		document.getElementById('button').innerHTML='<button class="round" onclick="window.open(\'https://maps.google.com/?saddr=\'+current+\'&daddr=\'+sel+\'\');" style="background-color:#000055; color:#5555ff;">More Details!</button>';
+		var request = {
+			origin:current,
+			destination:selection,
+			travelMode: google.maps.DirectionsTravelMode.DRIVING
+		};
+		directionsService.route(request, function(response, status) {
+			if (status == google.maps.DirectionsStatus.OK) {
+				directionsDisplay.setDirections(response);
+			}
+		});
+		document.getElementById('cancel').style.display='inline';
+	}
+
+	function showError(error){
+		switch(error.code){
+			case error.PERMISSION_DENIED:
+				x.innerHTML="User denied the request for Geolocation."
+			break;
+			case error.POSITION_UNAVAILABLE:
+				x.innerHTML="Location information is unavailable."
+			break;
+			case error.TIMEOUT:
+				x.innerHTML="The request to get user location timed out."
+			break;
+			case error.UNKNOWN_ERROR:
+				x.innerHTML="An unknown error occurred."
+			break;
+		}
+	}
+
+	function generateDropdown(){
+		dropdown='<select id="dropdown" onchange="if(this.value){calcRoute(this.value); document.getElementById(\'remove_button\').style.display=\'inline\';}else{window.location.reload();}" class="round" style="font-size:10px;"><option value="">Select place...</option><option value="">=====================</option>';
+		dest.sort();
+		for(var x=0;x<dest.length;x++){
+			if(dest[x].length){
+				destination_part=dest[x].split('~');
+				dropdown+='<option value="'+destination_part[1].substr(0,destination_part[1].length)+'">'+destination_part[0]+'</option>';
+			}
+		}
+		document.getElementById('dropdown_container').innerHTML=dropdown+'</select>';
+	}
+
+	function remember(){
+		if((document.getElementById('destination_name').value) && (document.getElementById('destination_name').value!='-place name-')){
+			if(localStorage.memory){
+				localStorage.memory+=document.getElementById('destination_name').value+"~"+current+"|";
+			}else{
+				localStorage.memory=document.getElementById('destination_name').value+"~"+current+"|";
+			}
+			dest=localStorage.memory.split('|');
+			generateDropdown();
+			document.getElementById('button').innerHTML='<span style="background-color:#003300;color:#00ff00;">&nbsp;^ Remembered!&nbsp;</span>';
+		}else{
+			alert('Please enter a place name!');
+		}
+	}
+
+	function forget(val, txt){
+		if(confirm('Remove ['+txt+'] ?')){
+			localStorage.memory=localStorage.memory.split(txt+'~'+val+'|').join('');
+			dest=localStorage.memory.split('|');
+			window.location.reload();
+		}
+	}
+
+	function logImport(){
+		document.getElementById('cancel').style.display='inline';
+		document.getElementById('label').innerHTML='IMPORT<br /><span style="font-size:10px;">copy and paste from export, ending with pipe (|)<br />import blank to clear records</span>';
+		document.getElementById('mapholder').innerHTML='<textarea cols="35" rows="10" id="import_data" style="font-size:11px;font-family:sans-serif"></textarea><br /><button style="font-size:11px;" class="round" onclick="if(confirm(\'This will overwrite your current locations!\')){localStorage.memory=document.getElementById(\'import_data\').value; window.location.reload();}">Import</button>';
+	}
+
+	function logExport(){
+		var address=prompt('EXPORT:\nPlease enter your e-mail address:');
+		document.location.href='mailto:'+address+'?subject=BACKTRACK - EXPORT&body='+localStorage.memory;
+	}
+
+	function resize_screen(){
+		if(document.body && document.body.offsetWidth){winW = document.body.offsetWidth; winH = document.body.offsetHeight;}
+		if(document.compatMode=='CSS1Compat' && document.documentElement && document.documentElement.offsetWidth){winW = document.documentElement.offsetWidth; winH = document.documentElement.offsetHeight;}
+		if(window.innerWidth && window.innerHeight) {winW = window.innerWidth; winH = window.innerHeight;}
+		mapholder.style.height=(winH-175)+'px';
+		mapholder.style.width=(winW-20)+'px';
+	}
+	</script>
+	<style type="text/css">
+	.round{
+		border-radius:7px;
+		box-shadow: 3px 3px 3px #888888;
+	}
+	</style>
+</head>
+<body onresize="resize_screen();" onload="getLocation(); generateDropdown();" style="font-family:sans-serif; font-weight:bold;" onresize="">
+	<div><span id="dropdown_container"></span><button id="remove_button" onclick="forget(document.getElementById('dropdown').options[document.getElementById('dropdown').selectedIndex].value,document.getElementById('dropdown').options[document.getElementById('dropdown').selectedIndex].text);" style="background-color:#330000; color:#ff0000; display:none;font-size:10px;" class="round">x</button>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<button id="cancel" onclick="window.location.reload()" style="background-color:#330000; color:#ff0000; display:none;font-size:10px;" class="round">cancel</button></div>
+	<br />
+	<div id="label">YOU ARE HERE:</div>
+	<div id="mapholder" class="round"></div>
+	<br />
+	<div id="button" align="right"><button onclick="logImport();" style="background-color:#000033;color:#3333ff;font-size:11px;" class="round">^</button>&nbsp;<button id="export" onclick="logExport();" style="background-color:#000033;color:#3333ff;font-size:11px;" class="round">v</button>&nbsp;&nbsp;&nbsp;<input class="round" type="text" id="destination_name" size="10" maxlength="25" value="-place name-" style="color:#aaaaaa;font-size:11px;" onclick="if(this.value=='-place name-'){this.value='';}this.style.color='#000000';" onblur="if(this.value==''){this.value='-place name-';this.style.color='#aaaaaa';}" />&nbsp;<button id="remember_button" onclick="remember();" style="background-color:#003300; color:#00ff00;font-size:11px;" class="round">&lt= Remember</button></div>
+</body>
+</html>
